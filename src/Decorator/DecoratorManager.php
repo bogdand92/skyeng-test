@@ -2,64 +2,32 @@
 
 namespace src\Decorator;
 
-use DateTime;
-use Exception;
-use Psr\Cache\CacheItemPoolInterface;
-use Psr\Log\LoggerInterface;
-use src\Integration\DataProvider;
+use src\Integration\{DataProvider, DataProviderInterface};
 
-class DecoratorManager extends DataProvider
+/**
+ * Базовый декоратор, который оборачивает собой сервис (я бы тут написал какой, но по условию задания не понял :( )
+ */
+class DecoratorManager implements DataProviderInterface
 {
-    public $cache;
-    public $logger;
+    /** @var DataProviderInterface */
+    protected $dataProvider;
 
     /**
-     * @param string $host
-     * @param string $user
-     * @param string $password
-     * @param CacheItemPoolInterface $cache
+     * @param DataProviderInterface $dataProvider
      */
-    public function __construct($host, $user, $password, CacheItemPoolInterface $cache)
+    public function __construct(DataProviderInterface $dataProvider)
     {
-        parent::__construct($host, $user, $password);
-        $this->cache = $cache;
-    }
-
-    public function setLogger(LoggerInterface $logger)
-    {
-        $this->logger = $logger;
+        $this->dataProvider = $dataProvider;
     }
 
     /**
-     * {@inheritdoc}
+     * Получить оригинальный запрос из стороннего апи
+     *
+     * @param array $request
+     * @return array
      */
-    public function getResponse(array $input)
+    public function get(array $request): array
     {
-        try {
-            $cacheKey = $this->getCacheKey($input);
-            $cacheItem = $this->cache->getItem($cacheKey);
-            if ($cacheItem->isHit()) {
-                return $cacheItem->get();
-            }
-
-            $result = parent::get($input);
-
-            $cacheItem
-                ->set($result)
-                ->expiresAt(
-                    (new DateTime())->modify('+1 day')
-                );
-
-            return $result;
-        } catch (Exception $e) {
-            $this->logger->critical('Error');
-        }
-
-        return [];
-    }
-
-    public function getCacheKey(array $input)
-    {
-        return json_encode($input);
+        return $this->dataProvider->get($request);
     }
 }
